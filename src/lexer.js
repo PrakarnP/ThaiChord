@@ -104,7 +104,39 @@ export function parseChord(chordStr) {
 
   const raw = chordStr.trim();
   // Normalize unicode accidentals
-  const normalized = raw.replace(/\u266F/g, '#').replace(/\u266D/g, 'b');
+  let normalized = raw.replace(/\u266F/g, '#').replace(/\u266D/g, 'b');
+
+  // Check for musical directives (measure bars, slashes, repeats, N.C.)
+  if (/^(?:\||\|\||\/|\/\/|%|x\d+|\(x\d+\)|N\.C\.)$/i.test(normalized)) {
+    return {
+      raw,
+      root: null,
+      accidental: '',
+      rootNote: null,
+      quality: '',
+      bass: null,
+      bassRoot: null,
+      bassAccidental: '',
+      isDirective: true,
+      isChord: true
+    };
+  }
+
+  // Handle parenthesized optional chord, e.g. (G7), (Am)
+  let isOptional = false;
+  let targetStr = normalized;
+  if (targetStr.startsWith('(') && targetStr.endsWith(')')) {
+    targetStr = targetStr.slice(1, -1).trim();
+    isOptional = true;
+  }
+
+  // Handle modulation chords, e.g. D/F#(E/G#) or G(A)
+  let altChord = null;
+  const modMatch = targetStr.match(/^([A-G][^(\s]*)\s*\(([^)]+)\)$/);
+  if (modMatch) {
+    targetStr = modMatch[1].trim();
+    altChord = modMatch[2].trim();
+  }
 
   // Standard Chord Regex:
   // Root: [A-G]
@@ -112,7 +144,7 @@ export function parseChord(chordStr) {
   // Quality: anything before optional slash bass
   // Bass: /[A-G][#b]?
   const regex = /^([A-G])([#b]?)([^/]*?)(?:\/([A-G])([#b]?))?$/;
-  const match = normalized.match(regex);
+  const match = targetStr.match(regex);
 
   if (!match) {
     return {
@@ -145,6 +177,8 @@ export function parseChord(chordStr) {
     bass,
     bassRoot,
     bassAccidental,
+    isOptional,
+    altChord,
     isChord: true
   };
 }
@@ -213,6 +247,8 @@ export function snapAnchor(lyrics, charIndex) {
   };
 }
 
+const SECTION_NAME_REGEX = /^(?:Intro|Verse|Chorus|Bridge|Pre-Chorus|Outro|Ending|Solo|Interlude|Instrumental|Tag|Coda|Hook|ข้อ|ท่อน|ฮุก)(?:\s*\d+)?$/i;
+
 /**
  * Parses a single line of ChordPro text into continuous lyrics and structured chord tokens.
  *
@@ -254,11 +290,11 @@ export function parseLine(line) {
   }
 
   // Section Header check in square brackets, e.g. [Chorus], [Verse 1], [Intro]
-  // If the line consists solely of a bracketed non-chord name:
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    const inner = trimmed.slice(1, -1).trim();
-    const parsedAsChord = parseChord(inner);
-    if (!parsedAsChord.isChord) {
+  // ONLY if the line consists solely of a SINGLE bracketed section name:
+  const singleBracketMatch = trimmed.match(/^\[([^\]]+)\]$/);
+  if (singleBracketMatch) {
+    const inner = singleBracketMatch[1].trim();
+    if (SECTION_NAME_REGEX.test(inner)) {
       return {
         type: 'section',
         raw: line,
