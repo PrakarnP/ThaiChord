@@ -206,25 +206,9 @@ export function snapAnchor(lyrics, charIndex) {
 
   const ch = lyrics[charIndex];
 
-  // 1. Leading vowel snap:
-  // If bracket is before leading vowel, snap visual anchor to the following base consonant
-  if (isLeadingVowel(ch)) {
-    let target = charIndex + 1;
-    while (target < lyrics.length && !isThaiConsonant(lyrics[target])) {
-      target++;
-    }
-    if (target < lyrics.length) {
-      return {
-        anchorIndex: target,
-        snapped: true,
-        isEndTurnaround: false,
-        snappedFromLeadingVowel: true
-      };
-    }
-  }
-
-  // 2. Combining mark safety:
-  // Never anchor to combining marks (upper vowels, lower vowels, tone marks, thanthakhat)
+  // 1. Combining mark safety:
+  // Never anchor directly to non-spacing combining marks (upper vowels, lower vowels, tone marks, thanthakhat).
+  // If placed on a combining mark, snap back to the base consonant.
   if (isCombiningMark(ch)) {
     let target = charIndex;
     while (target > 0 && !isThaiConsonant(lyrics[target])) {
@@ -233,17 +217,15 @@ export function snapAnchor(lyrics, charIndex) {
     return {
       anchorIndex: target,
       snapped: target !== charIndex,
-      isEndTurnaround: false,
-      snappedFromLeadingVowel: false
+      isEndTurnaround: false
     };
   }
 
-  // Normal consonant or other character anchor
+  // Normal syllable onset (consonant, leading vowel เ/แ/โ/ใ/ไ, or symbol)
   return {
     anchorIndex: charIndex,
     snapped: false,
-    isEndTurnaround: false,
-    snappedFromLeadingVowel: false
+    isEndTurnaround: false
   };
 }
 

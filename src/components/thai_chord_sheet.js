@@ -7,7 +7,7 @@
  */
 
 import { parseChordPro } from '../lexer.js';
-import { buildTimelineForDoc } from '../timeline.js';
+import { buildTimelineForDoc, createCanvasMeasure } from '../timeline.js';
 import { transposeChordPro } from '../transposer.js';
 
 const BaseClass = typeof HTMLElement !== 'undefined' ? HTMLElement : class {};
@@ -40,7 +40,8 @@ export function renderChordSheetHtml(chordProText, options = {}) {
     : chordProText;
 
   const parsedDoc = parseChordPro(processedChordPro);
-  const { metadata, timelines } = buildTimelineForDoc(parsedDoc, options);
+  const measure = options.measureText || (typeof document !== 'undefined' ? createCanvasMeasure('18.4px system-ui, -apple-system, Sarabun, sans-serif') : null);
+  const { metadata, timelines } = buildTimelineForDoc(parsedDoc, { ...options, measureText: measure });
 
   let html = `<div class="tc-container tc-theme-${escapeHtml(theme)}">`;
 

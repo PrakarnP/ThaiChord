@@ -9,19 +9,40 @@
 import { isCombiningMark, isLeadingVowel, isThaiCharacter } from './lexer.js';
 
 export const DEFAULT_TIMELINE_OPTIONS = {
-  thaiConsonantWidth: 12,    // Visual width of Thai consonants & spacing vowels
-  thaiCombiningWidth: 0,     // Crucial: Upper/lower vowels, tone marks have 0 advance width!
-  spaceWidth: 7,             // Visual width of space character
-  latinCharWidth: 9,         // Visual width of Latin letters and numbers
-  otherCharWidth: 10,        // Visual width of other symbols
-  chordCharWidth: 8.5,       // Character width in chord font (monospace/semi-proportional)
-  chordPadding: 6,           // Extra visual breathing room
-  minChordGap: 8             // Minimum clearance between adjacent chords on Track 0
+  thaiConsonantWidth: 8.8,   // Calibrated to 16px Sarabun / Noto Sans Thai typography
+  thaiCombiningWidth: 0,     // Crucial: Upper/lower vowels, tone marks have 0 advance width
+  spaceWidth: 5.5,           // Calibrated space width in Sarabun
+  latinCharWidth: 8.5,       // Visual width of Latin letters and numbers
+  otherCharWidth: 8.5,       // Visual width of other symbols
+  chordCharWidth: 8.0,       // Character width in chord font (monospace/semi-proportional)
+  chordPadding: 4,           // Subtle breathing room
+  minChordGap: 6             // Minimum clearance between adjacent chords on Track 0
 };
+
+let cachedMeasureCanvas = null;
+let cachedMeasureCtx = null;
+
+/**
+ * Creates a browser-based exact canvas text measurement function.
+ * @param {string} font E.g. '16px "Sarabun", sans-serif'
+ * @returns {((text: string) => number)|null}
+ */
+export function createCanvasMeasure(font = '16px "Sarabun", sans-serif') {
+  if (typeof document === 'undefined') return null;
+  if (!cachedMeasureCanvas) {
+    cachedMeasureCanvas = document.createElement('canvas');
+    cachedMeasureCtx = cachedMeasureCanvas.getContext('2d');
+  }
+  cachedMeasureCtx.font = font;
+  return function(text) {
+    return cachedMeasureCtx.measureText(text).width;
+  };
+}
 
 /**
  * Calculates character metrics for Track 1 (unbroken continuous lyrics).
  * Thai combining marks (upper/lower vowels, tone marks) produce 0 advance width.
+ * When measureText is passed, uses exact canvas font measurements.
  *
  * @param {string} lyrics Continuous lyrics string
  * @param {object} [options]
@@ -30,8 +51,32 @@ export const DEFAULT_TIMELINE_OPTIONS = {
 export function calculateCharPositions(lyrics, options = {}) {
   const opts = { ...DEFAULT_TIMELINE_OPTIONS, ...options };
   const charPositions = [];
-  let currentX = 0;
 
+  // 1. If exact canvas/DOM measurement function is provided:
+  if (typeof opts.measureText === 'function') {
+    const totalLyricWidth = opts.measureText(lyrics);
+    for (let i = 0; i < lyrics.length; i++) {
+      const x_start = opts.measureText(lyrics.substring(0, i));
+      const x_next = (i < lyrics.length - 1) ? opts.measureText(lyrics.substring(0, i + 1)) : totalLyricWidth;
+      const width = Math.max(0, x_next - x_start);
+      charPositions.push({
+        char: lyrics[i],
+        index: i,
+        x_start,
+        width,
+        x_end: x_start + width,
+        isCombining: isCombiningMark(lyrics[i]),
+        isLeadingVowel: isLeadingVowel(lyrics[i])
+      });
+    }
+    return {
+      charPositions,
+      totalLyricWidth
+    };
+  }
+
+  // 2. Headless fallback calculation
+  let currentX = 0;
   for (let i = 0; i < lyrics.length; i++) {
     const ch = lyrics[i];
     let width = 0;

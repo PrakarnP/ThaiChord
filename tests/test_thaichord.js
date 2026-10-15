@@ -123,8 +123,8 @@ export function runTestSuite() {
     assert.equal(transposeChord('F/A', 2), 'G/B', 'F/A +2 must transpose to G/B');
   });
 
-  // Test 5: Leading vowel snap ([D]แลก snaps anchor to ล)
-  test('Test 5: Leading vowel snap ([D]แลก snaps anchor to ล)', () => {
+  // Test 5: Syllable onset alignment with leading vowels ([D]แลก anchors at start of syllable แ at index 0)
+  test('Test 5: Syllable onset alignment with leading vowels ([D]แลก anchors at start of syllable แ at index 0)', () => {
     const input = '[D]แลก';
     const parsed = parseLine(input);
 
@@ -134,17 +134,15 @@ export function runTestSuite() {
     const chord = parsed.chords[0];
     assert.equal(chord.raw, 'D');
     assert.equal(chord.charIndex, 0, 'Bracket was placed at index 0 (before แ)');
-    assert.equal(chord.anchorIndex, 1, 'Visual anchor must snap to index 1 (consonant ล)');
-    assert.equal(chord.snapped, true, 'Must flag snapped as true');
-    assert.equal(chord.snappedFromLeadingVowel, true, 'Must flag snappedFromLeadingVowel as true');
+    assert.equal(chord.anchorIndex, 0, 'Visual anchor must align at syllable start (index 0 at แ)');
+    assert.equal(chord.snapped, false);
 
     // Also test Sara E (เ)
     const input2 = '[G]เปลี่ยน';
     const parsed2 = parseLine(input2);
     assert.equal(parsed2.lyrics, 'เปลี่ยน');
     assert.equal(parsed2.chords[0].charIndex, 0);
-    assert.equal(parsed2.chords[0].anchorIndex, 1, 'Anchor must snap past เ to ป');
-    assert.equal(parsed2.chords[0].snappedFromLeadingVowel, true);
+    assert.equal(parsed2.chords[0].anchorIndex, 0, 'Anchor aligns at syllable start (index 0 at เ)');
   });
 
   // Test 6: Combining mark safety (chords never slice เ-ีย, ั, ำ, tone marks)

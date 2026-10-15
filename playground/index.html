@@ -272,22 +272,16 @@
 
     function snapAnchor(lyrics, charIndex) {
       if (charIndex >= lyrics.length) {
-        return { anchorIndex: lyrics.length, snapped: false, isEndTurnaround: true, snappedFromLeadingVowel: false };
+        return { anchorIndex: lyrics.length, snapped: false, isEndTurnaround: true };
       }
       const ch = lyrics[charIndex];
-      if (isLeadingVowel(ch)) {
-        let target = charIndex + 1;
-        while (target < lyrics.length && !isThaiConsonant(lyrics[target])) target++;
-        if (target < lyrics.length) {
-          return { anchorIndex: target, snapped: true, isEndTurnaround: false, snappedFromLeadingVowel: true };
-        }
-      }
+      // Combining mark safety: Never anchor directly to non-spacing combining marks
       if (isCombiningMark(ch)) {
         let target = charIndex;
         while (target > 0 && !isThaiConsonant(lyrics[target])) target--;
-        return { anchorIndex: target, snapped: target !== charIndex, isEndTurnaround: false, snappedFromLeadingVowel: false };
+        return { anchorIndex: target, snapped: target !== charIndex, isEndTurnaround: false };
       }
-      return { anchorIndex: charIndex, snapped: false, isEndTurnaround: false, snappedFromLeadingVowel: false };
+      return { anchorIndex: charIndex, snapped: false, isEndTurnaround: false };
     }
 
     const SECTION_NAME_REGEX = /^(?:Intro|Verse|Chorus|Bridge|Pre-Chorus|Outro|Ending|Solo|Interlude|Instrumental|Tag|Coda|Hook|ข้อ|ท่อน|ฮุก)(?:\s*\d+)?$/i;
@@ -392,36 +386,47 @@
       });
     }
 
+    let cachedCanvas = null;
+    let cachedCtx = null;
+
+    function getCanvasMeasure(font = '16px "Sarabun", -apple-system, sans-serif') {
+      if (!cachedCanvas) {
+        cachedCanvas = document.createElement('canvas');
+        cachedCtx = cachedCanvas.getContext('2d');
+      }
+      cachedCtx.font = font;
+      return function(text) {
+        return cachedCtx.measureText(text).width;
+      };
+    }
+
     const DEFAULT_METRICS = {
-      thaiConsonantWidth: 12.5,
+      thaiConsonantWidth: 8.8,
       thaiCombiningWidth: 0,
-      spaceWidth: 7,
-      latinCharWidth: 9,
-      chordCharWidth: 8.5,
-      chordPadding: 6,
-      minChordGap: 8
+      spaceWidth: 5.5,
+      latinCharWidth: 8.5,
+      chordCharWidth: 8.0,
+      chordPadding: 2,
+      minChordGap: 5
     };
 
     function calculateCharPositions(lyrics, opts = DEFAULT_METRICS) {
       const charPositions = [];
-      let currentX = 0;
-      for (let i = 0; i < lyrics.length; i++) {
-        const ch = lyrics[i];
-        let width = 0;
-        if (isCombiningMark(ch)) width = opts.thaiCombiningWidth;
-        else if (ch === ' ') width = opts.spaceWidth;
-        else if (isThaiCharacter(ch)) width = opts.thaiConsonantWidth;
-        else if (/[a-zA-Z0-9]/.test(ch)) width = opts.latinCharWidth;
-        else width = 10;
+      const measure = opts.measureText || getCanvasMeasure('16px "Sarabun", -apple-system, sans-serif');
 
-        charPositions.push({ char: ch, index: i, x_start: currentX, width, x_end: currentX + width });
-        currentX += width;
+      const totalLyricWidth = measure(lyrics);
+      for (let i = 0; i < lyrics.length; i++) {
+        const x_start = measure(lyrics.substring(0, i));
+        const x_next = (i < lyrics.length - 1) ? measure(lyrics.substring(0, i + 1)) : totalLyricWidth;
+        const width = Math.max(0, x_next - x_start);
+        charPositions.push({ char: lyrics[i], index: i, x_start, width, x_end: x_start + width });
       }
-      return { charPositions, totalLyricWidth: currentX };
+      return { charPositions, totalLyricWidth };
     }
 
     function measureChordWidth(rawChord, opts = DEFAULT_METRICS) {
-      return (rawChord ? rawChord.length : 0) * opts.chordCharWidth + opts.chordPadding;
+      const measure = opts.measureChordText || getCanvasMeasure('bold 13px "JetBrains Mono", monospace');
+      return measure(rawChord) + 3;
     }
 
     function buildTimeline(parsedLine, opts = DEFAULT_METRICS) {
@@ -630,20 +635,20 @@
       
       // Track 0: Chords
       if (timeline.chords && timeline.chords.length > 0) {
-        html += `<div class="relative h-6 font-mono text-xs font-bold text-amber-400 select-none whitespace-nowrap" style="width: ${minWidth}px">`;
+        html += `<div class="relative h-6 font-mono text-xs font-bold text-amber-400 select-none whitespace-nowrap pl-0" style="width: ${minWidth}px">`;
         timeline.chords.forEach(c => {
           const leftPx = c.x_actual.toFixed(1);
           const bassSpan = c.bass ? `<span class="text-slate-400">/</span><span class="text-pink-400">${escapeHtml(c.bass)}</span>` : '';
-          const dispIndicator = c.displaced ? 'border-b-2 border-purple-400' : '';
-          html += `<span class="absolute top-0 px-1 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ${dispIndicator} cursor-default hover:bg-amber-500/20 transition" style="left: ${leftPx}px" title="Anchor: '${timeline.lyrics[c.anchorIndex] || 'end'}' (x=${leftPx}px${c.displaced ? ', shifted +' + c.shiftAmount.toFixed(1) + 'px' : ''})">`;
-          html += `<span class="text-amber-300">${escapeHtml(c.rootNote || c.raw)}</span><span class="text-amber-200 text-[11px]">${escapeHtml(c.quality || '')}</span>${bassSpan}`;
+          const dispIndicator = c.displaced ? 'underline decoration-purple-400 decoration-2 underline-offset-2' : '';
+          html += `<span class="absolute top-0 px-0 py-0 cursor-default hover:text-amber-200 transition ${dispIndicator}" style="left: ${leftPx}px" title="Anchor: '${timeline.lyrics[c.anchorIndex] || 'end'}' (x=${leftPx}px${c.displaced ? ', shifted +' + c.shiftAmount.toFixed(1) + 'px' : ''})">`;
+          html += `<span class="text-amber-400 font-bold">${escapeHtml(c.rootNote || c.raw)}</span><span class="text-amber-300 text-[11px]">${escapeHtml(c.quality || '')}</span>${bassSpan}`;
           html += `</span>`;
         });
         html += `</div>`;
       }
 
       // Track 1: Continuous Thai Lyric Track (NEVER sliced!)
-      html += `<div class="relative font-sarabun text-base text-slate-100 whitespace-pre leading-relaxed tracking-normal pl-2 font-normal">${escapeHtml(timeline.lyrics || ' ')}</div>`;
+      html += `<div class="relative font-sarabun text-base text-slate-100 whitespace-pre leading-relaxed tracking-normal pl-0 font-normal">${escapeHtml(timeline.lyrics || ' ')}</div>`;
       html += `</div>`;
       return html;
     }
@@ -652,11 +657,11 @@
       let html = `<div class="bg-slate-950 p-4 rounded-xl border border-slate-800 timeline-grid relative overflow-x-auto">`;
       
       // Track 0
-      html += `<div class="relative h-10 border-b border-dashed border-amber-500/30 flex items-center mb-4">`;
+      html += `<div class="relative h-10 border-b border-dashed border-amber-500/30 flex items-center mb-4 pl-0">`;
       html += `<span class="absolute -left-2 -top-2.5 text-[10px] font-mono text-amber-400 font-bold bg-slate-900 px-1 border border-amber-500/30 rounded">Track 0 (Chords)</span>`;
       html += `<div class="relative w-full h-full">`;
       timeline.chords.forEach(c => {
-        html += `<div class="absolute top-1 font-mono text-xs font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow" style="left: ${c.x_actual.toFixed(1)}px">`;
+        html += `<div class="absolute top-1 font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow" style="left: ${c.x_actual.toFixed(1)}px">`;
         html += `${escapeHtml(c.raw)}`;
         if (c.displaced) html += ` <span class="text-[10px] text-purple-300">(+${c.shiftAmount.toFixed(0)}px)</span>`;
         html += `</div>`;
@@ -664,9 +669,9 @@
       html += `</div></div>`;
 
       // Track 1
-      html += `<div class="relative h-8 flex items-center">`;
+      html += `<div class="relative h-8 flex items-center pl-0">`;
       html += `<span class="absolute -left-2 -top-2.5 text-[10px] font-mono text-blue-400 font-bold bg-slate-900 px-1 border border-blue-500/30 rounded">Track 1 (Continuous Lyrics)</span>`;
-      html += `<div class="font-sarabun text-base text-slate-200 pl-3 tracking-normal">${escapeHtml(timeline.lyrics)}</div>`;
+      html += `<div class="font-sarabun text-base text-slate-200 pl-0 tracking-normal">${escapeHtml(timeline.lyrics)}</div>`;
       html += `</div></div>`;
 
       return html;
