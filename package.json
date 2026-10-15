@@ -1,0 +1,23 @@
+{
+  "name": "thaichord",
+  "version": "0.1.0",
+  "description": "Continuous script chord placing engine and web component for Thai and Asian languages",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node tests/run_tests.js"
+  },
+  "keywords": [
+    "chordpro",
+    "thai",
+    "lead-sheet",
+    "continuous-script",
+    "scriptio-continua",
+    "worship-music",
+    "slash-chords",
+    "chords"
+  ],
+  "author": "PrakarnP <Prakarn.pan@gmail.com>",
+  "license": "MIT"
+}
