@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ThaiChord Interactive Playground 🇹🇭🎸</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Sarabun', -apple-system, sans-serif; }
+    code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+    ::-webkit-scrollbar-thumb { background: rgba(150,150,150,0.3); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(150,150,150,0.5); }
+    
+    .timeline-grid {
+      background-size: 20px 20px;
+      background-image: 
+        linear-gradient(to right, rgba(150, 150, 150, 0.07) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(150, 150, 150, 0.07) 1px, transparent 1px);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased min-h-screen flex flex-col">
+
+  <!-- Top Navigation Bar -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-4">
+      <div class="flex items-center space-x-3">
+        <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 font-bold text-lg border border-amber-500/30">
+          🇹🇭
+        </span>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+              ThaiChord <span class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">Playground</span>
+            </h1>
+            <span class="text-[11px] text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded">v0.1.0</span>
+          </div>
+          <p class="text-xs text-slate-400">Continuous Script Chord Engine for Thai & Asian Languages</p>
+        </div>
+      </div>
+
+      <!-- Action Controls -->
+      <div class="flex items-center flex-wrap gap-2 text-xs">
+        <!-- Preset Dropdown -->
+        <div class="flex items-center space-x-1.5 bg-slate-800 p-1 rounded-lg border border-slate-700">
+          <span class="text-slate-400 font-medium pl-1.5">Preset:</span>
+          <select id="preset-select" onchange="loadPreset(this.value)" class="bg-slate-900 text-amber-300 font-medium py-1 px-2 rounded border border-slate-700 focus:outline-none focus:border-amber-400">
+            <option value="176">Song #176 (ความอาย - Turnaround)</option>
+            <option value="48">Song #48 (ทรงชำระข้า - Stacked Chords)</option>
+            <option value="16">Song #16 (เหมือนพระองค์ - 4 Fast Chords)</option>
+            <option value="301">Song #301 (ข้ารับชีวิตพระคริสต์ - Slash Bass)</option>
+            <option value="slash_demo">Slash Chords Lab (C/E, G/B, Dsus4/F#)</option>
+            <option value="custom">Blank Custom Input</option>
+          </select>
+        </div>
+
+        <!-- Transpose Controls -->
+        <div class="flex items-center space-x-1 bg-slate-800 p-1 rounded-lg border border-slate-700">
+          <button onclick="changeTranspose(-1)" title="Transpose -1 Semitone" class="w-7 h-7 flex items-center justify-center rounded bg-slate-700 hover:bg-slate-600 font-bold text-white transition">-1</button>
+          <span id="transpose-label" class="font-mono font-bold text-amber-400 px-2 min-w-[3rem] text-center">0 st</span>
+          <button onclick="changeTranspose(1)" title="Transpose +1 Semitone" class="w-7 h-7 flex items-center justify-center rounded bg-slate-700 hover:bg-slate-600 font-bold text-white transition">+1</button>
+          <button onclick="resetTranspose()" title="Reset Transpose" class="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-[11px] text-slate-300">Reset</button>
+        </div>
+
+        <!-- View Mode Toggle -->
+        <div class="flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700 font-medium">
+          <button id="btn-mode-split" onclick="setViewMode('split')" class="px-2.5 py-1 rounded text-xs bg-amber-500 text-slate-950 font-bold transition">Side-by-Side</button>
+          <button id="btn-mode-single" onclick="setViewMode('single')" class="px-2.5 py-1 rounded text-xs text-slate-300 hover:text-white transition">ThaiChord Only</button>
+          <button id="btn-mode-timeline" onclick="setViewMode('timeline')" class="px-2.5 py-1 rounded text-xs text-slate-300 hover:text-white transition">2D Inspector</button>
+        </div>
+
+        <!-- Theme Toggle -->
+        <div class="flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700">
+          <button id="theme-btn" onclick="toggleTheme()" class="px-2.5 py-1 text-slate-300 hover:text-white flex items-center gap-1">
+            <span id="theme-icon">🌙</span> <span id="theme-text">Dark</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Body Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Left Column: Input Editor -->
+    <div class="lg:col-span-5 flex flex-col space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex-1 flex flex-col shadow-lg">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider">ChordPro Source Input</h2>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button onclick="insertChordSnippet('[C/E]')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono text-xs border border-slate-700">+ C/E</button>
+            <button onclick="insertChordSnippet('[G/B]')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono text-xs border border-slate-700">+ G/B</button>
+            <button onclick="clearEditor()" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-300 text-xs">Clear</button>
+          </div>
+        </div>
+
+        <!-- Textarea -->
+        <textarea id="chordpro-input" oninput="onInputChanged()" spellcheck="false" class="w-full flex-1 min-h-[320px] bg-slate-950 font-mono text-xs md:text-sm text-slate-200 p-3.5 rounded-lg border border-slate-800 focus:outline-none focus:border-amber-500 leading-relaxed resize-y" placeholder="Type or paste ChordPro lyrics and chords here... e.g. [A]ฉัน[D]แลกเปลี่ยน[F#m]ความอาย [E]"></textarea>
+
+        <!-- Live Metrics Bar -->
+        <div class="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400 flex-wrap gap-2 font-mono">
+          <div>Chords: <span id="metric-chords" class="text-amber-400 font-bold">0</span></div>
+          <div>Slash Bass: <span id="metric-slash" class="text-pink-400 font-bold">0</span></div>
+          <div>Collisions Shifted: <span id="metric-displaced" class="text-purple-400 font-bold">0</span></div>
+          <div>Lyric Voids: <span id="metric-voids" class="text-emerald-400 font-bold">0</span></div>
+        </div>
+      </div>
+
+      <!-- Quick Syntax Cheat Sheet -->
+      <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3.5 text-xs text-slate-400 space-y-1.5">
+        <div class="font-bold text-slate-300 text-[11px] uppercase tracking-wider">💡 ThaiChord Features</div>
+        <p>• <strong>Continuous Script:</strong> Chords bound before Thai letters never slice or split words.</p>
+        <p>• <strong>Slash Chords:</strong> <code class="text-pink-300">[C/E]</code>, <code class="text-pink-300">[G/B]</code>, <code class="text-pink-300">[Dsus4/F#]</code> transpose both notes synchronously.</p>
+        <p>• <strong>Optical Overhang:</strong> Adjacent chords <code class="text-amber-300">[C][G]พระองค์</code> shift on Track 0 with zero spaces inside Thai words.</p>
+      </div>
+    </div>
+
+    <!-- Right Column: Interactive Rendering Display -->
+    <div class="lg:col-span-7 flex flex-col space-y-4">
+
+      <!-- View 1: Side-by-Side Comparison Mode -->
+      <div id="view-split" class="space-y-4">
+        <!-- Western ChordPro Preview (Flawed) -->
+        <div class="bg-slate-900 border border-red-500/30 rounded-xl p-4 shadow-lg">
+          <div class="flex items-center justify-between pb-2.5 border-b border-red-500/20 mb-3">
+            <div class="flex items-center space-x-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+              <h3 class="text-xs font-bold text-red-400 uppercase tracking-wider">Standard Western ChordPro (Rigid Column Box)</h3>
+            </div>
+            <span class="text-[11px] px-2 py-0.5 rounded bg-red-500/20 text-red-300">Creates Syllable Voids</span>
+          </div>
+          <div id="preview-western" class="bg-slate-950 p-4 rounded-lg border border-slate-800 overflow-x-auto min-h-[110px] space-y-3">
+            <!-- Dynamically populated -->
+          </div>
+          <div class="mt-2 text-[11px] text-red-400 flex items-center gap-1.5">
+            <span>❌</span> <span>Standard ChordPro enforces max(chord, lyric) columns, creating unnatural voids inside Thai words.</span>
+          </div>
+        </div>
+
+        <!-- ThaiChord Preview (100% Continuous) -->
+        <div class="bg-slate-900 border border-emerald-500/30 rounded-xl p-4 shadow-lg">
+          <div class="flex items-center justify-between pb-2.5 border-b border-emerald-500/20 mb-3">
+            <div class="flex items-center space-x-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <h3 class="text-xs font-bold text-emerald-400 uppercase tracking-wider">ThaiChord Engine (Decoupled 2D Timeline)</h3>
+            </div>
+            <span class="text-[11px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">0 Syllable Slices</span>
+          </div>
+          <div id="preview-thaichord-split" class="bg-slate-950 p-4 rounded-lg border border-slate-800 overflow-x-auto min-h-[110px] space-y-4">
+            <!-- Dynamically populated -->
+          </div>
+          <div class="mt-2 text-[11px] text-emerald-400 flex items-center gap-1.5">
+            <span>✓</span> <span>Continuous Thai script stays 100% unbroken. Chords overhang cleanly on Track 0.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- View 2: Single Full Lead Sheet Mode -->
+      <div id="view-single" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">ThaiChord Lead Sheet View</h3>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button onclick="window.print()" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700">🖨️ Print Lead Sheet</button>
+          </div>
+        </div>
+        <div id="preview-thaichord-full" class="bg-slate-950 p-6 rounded-lg border border-slate-800 overflow-x-auto min-h-[300px] space-y-4">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- View 3: 2D Timeline Inspector Mode -->
+      <div id="view-timeline" class="hidden bg-slate-900 border border-purple-500/30 rounded-xl p-6 shadow-xl space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-purple-500/20">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-purple-400"></span>
+            <h3 class="text-sm font-bold text-purple-300 uppercase tracking-wider">2D Decoupled Coordinate Inspector</h3>
+          </div>
+          <span class="text-xs font-mono text-purple-300">1 grid unit = 10px</span>
+        </div>
+        <p class="text-xs text-slate-400">
+          Visualizes Track 0 (chords with optical bounding boxes) and Track 1 (unbroken Thai continuous glyphs).
+        </p>
+        <div id="preview-timeline-inspector" class="space-y-4 overflow-x-auto">
+          <!-- Dynamically populated timeline tracks -->
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Inline Bundled ThaiChord Engine to guarantee 100% offline & local file:// compatibility -->
+  <script>
+    // --- 1. THAICHORD CORE ENGINE IMPLEMENTATION ---
+
+    const THAI_CONSONANTS_START = 0x0E01;
+    const THAI_CONSONANTS_END = 0x0E2E;
+
+    const LEADING_VOWELS = new Set(['\u0E40', '\u0E41', '\u0E42', '\u0E43', '\u0E44']);
+    const COMBINING_MARKS = new Set([
+      '\u0E31', '\u0E34', '\u0E35', '\u0E36', '\u0E37', '\u0E38', '\u0E39', '\u0E3A',
+      '\u0E47', '\u0E48', '\u0E49', '\u0E4A', '\u0E4B', '\u0E4C', '\u0E4D', '\u0E4E'
+    ]);
+
+    function isThaiConsonant(ch) {
+      if (!ch) return false;
+      const code = ch.charCodeAt(0);
+      return code >= THAI_CONSONANTS_START && code <= THAI_CONSONANTS_END;
+    }
+
+    function isLeadingVowel(ch) { return LEADING_VOWELS.has(ch); }
+    function isCombiningMark(ch) { return COMBINING_MARKS.has(ch); }
+    function isThaiCharacter(ch) {
+      if (!ch) return false;
+      const code = ch.charCodeAt(0);
+      return code >= 0x0E00 && code <= 0x0E7F;
+    }
+
+    function parseChord(chordStr) {
+      if (!chordStr || typeof chordStr !== 'string') {
+        return { raw: '', root: null, accidental: '', rootNote: null, quality: '', bass: null, bassRoot: null, bassAccidental: '', isChord: false };
+      }
+      const raw = chordStr.trim();
+      let normalized = raw.replace(/\u266F/g, '#').replace(/\u266D/g, 'b');
+
+      if (/^(?:\||\|\||\/|\/\/|%|x\d+|\(x\d+\)|N\.C\.)$/i.test(normalized)) {
+        return { raw, root: null, accidental: '', rootNote: null, quality: '', bass: null, bassRoot: null, bassAccidental: '', isDirective: true, isChord: true };
+      }
+
+      let isOptional = false;
+      let targetStr = normalized;
+      if (targetStr.startsWith('(') && targetStr.endsWith(')')) {
+        targetStr = targetStr.slice(1, -1).trim();
+        isOptional = true;
+      }
+
+      let altChord = null;
+      const modMatch = targetStr.match(/^([A-G][^(\s]*)\s*\(([^)]+)\)$/);
+      if (modMatch) {
+        targetStr = modMatch[1].trim();
+        altChord = modMatch[2].trim();
+      }
+
+      const regex = /^([A-G])([#b]?)([^/]*?)(?:\/([A-G])([#b]?))?$/;
+      const match = targetStr.match(regex);
+      if (!match) {
+        return { raw, root: null, accidental: '', rootNote: null, quality: '', bass: null, bassRoot: null, bassAccidental: '', isChord: false };
+      }
+
+      const root = match[1];
+      const accidental = match[2] || '';
+      const rootNote = root + accidental;
+      const quality = match[3] || '';
+      const bassRoot = match[4] || null;
+      const bassAccidental = match[5] || '';
+      const bass = bassRoot ? bassRoot + bassAccidental : null;
+
+      return { raw, root, accidental, rootNote, quality, bass, bassRoot, bassAccidental, isOptional, altChord, isChord: true };
+    }
+
+    function snapAnchor(lyrics, charIndex) {
+      if (charIndex >= lyrics.length) {
+        return { anchorIndex: lyrics.length, snapped: false, isEndTurnaround: true, snappedFromLeadingVowel: false };
+      }
+      const ch = lyrics[charIndex];
+      if (isLeadingVowel(ch)) {
+        let target = charIndex + 1;
+        while (target < lyrics.length && !isThaiConsonant(lyrics[target])) target++;
+        if (target < lyrics.length) {
+          return { anchorIndex: target, snapped: true, isEndTurnaround: false, snappedFromLeadingVowel: true };
+        }
+      }
+      if (isCombiningMark(ch)) {
+        let target = charIndex;
+        while (target > 0 && !isThaiConsonant(lyrics[target])) target--;
+        return { anchorIndex: target, snapped: target !== charIndex, isEndTurnaround: false, snappedFromLeadingVowel: false };
+      }
+      return { anchorIndex: charIndex, snapped: false, isEndTurnaround: false, snappedFromLeadingVowel: false };
+    }
+
+    const SECTION_NAME_REGEX = /^(?:Intro|Verse|Chorus|Bridge|Pre-Chorus|Outro|Ending|Solo|Interlude|Instrumental|Tag|Coda|Hook|ข้อ|ท่อน|ฮุก)(?:\s*\d+)?$/i;
+
+    function parseLine(line) {
+      const trimmed = line.trim();
+      if (trimmed.length === 0) return { type: 'empty', raw: line, lyrics: '', chords: [] };
+
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        const inner = trimmed.slice(1, -1).trim();
+        const colonIdx = inner.indexOf(':');
+        let name = inner;
+        let value = '';
+        if (colonIdx !== -1) {
+          name = inner.slice(0, colonIdx).trim().toLowerCase();
+          value = inner.slice(colonIdx + 1).trim();
+        } else {
+          name = name.toLowerCase();
+        }
+        return { type: 'directive', raw: line, name, value };
+      }
+
+      const singleBracketMatch = trimmed.match(/^\[([^\]]+)\]$/);
+      if (singleBracketMatch) {
+        const inner = singleBracketMatch[1].trim();
+        if (SECTION_NAME_REGEX.test(inner)) {
+          return { type: 'section', raw: line, name: inner, lyrics: '', chords: [] };
+        }
+      }
+
+      let lyrics = '';
+      const rawChords = [];
+      let i = 0;
+      while (i < line.length) {
+        if (line[i] === '[') {
+          const closeIdx = line.indexOf(']', i + 1);
+          if (closeIdx !== -1) {
+            const chordStr = line.slice(i + 1, closeIdx);
+            const parsedChord = parseChord(chordStr);
+            rawChords.push({ parsedChord, charIndex: lyrics.length });
+            i = closeIdx + 1;
+            continue;
+          }
+        }
+        lyrics += line[i];
+        i++;
+      }
+
+      const chords = rawChords.map((entry, index) => {
+        const snap = snapAnchor(lyrics, entry.charIndex);
+        return {
+          ...entry.parsedChord,
+          order: index,
+          charIndex: entry.charIndex,
+          anchorIndex: snap.anchorIndex,
+          snapped: snap.snapped,
+          isEndTurnaround: snap.isEndTurnaround,
+          snappedFromLeadingVowel: snap.snappedFromLeadingVowel
+        };
+      });
+
+      return { type: 'lyric', raw: line, lyrics, chords };
+    }
+
+    const PITCH_MAP = {
+      'C': 0, 'B#': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3, 'E': 4, 'Fb': 4,
+      'F': 5, 'E#': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8, 'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11, 'Cb': 11
+    };
+    const SHARP_SCALE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const FLAT_SCALE  = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+    function transposeNote(note, semitones, preferFlats = false) {
+      if (!note) return note;
+      const clean = note.trim().replace(/\u266F/g, '#').replace(/\u266D/g, 'b');
+      const pitch = PITCH_MAP[clean];
+      if (pitch === undefined) return note;
+      let newPitch = ((pitch + semitones) % 12 + 12) % 12;
+      return preferFlats ? FLAT_SCALE[newPitch] : SHARP_SCALE[newPitch];
+    }
+
+    function transposeChord(chordStr, semitones) {
+      if (!semitones || semitones === 0) return chordStr;
+      const parsed = parseChord(chordStr);
+      if (!parsed.isChord || !parsed.rootNote) return chordStr;
+
+      const newRoot = transposeNote(parsed.rootNote, semitones);
+      let newBass = null;
+      if (parsed.bass) {
+        newBass = transposeNote(parsed.bass, semitones);
+      }
+      return newRoot + parsed.quality + (newBass ? `/${newBass}` : '');
+    }
+
+    function transposeChordPro(chordProText, semitones) {
+      if (!semitones || semitones === 0) return chordProText;
+      return chordProText.replace(/\[([^\]]+)\]/g, (match, inner) => {
+        const parsed = parseChord(inner);
+        if (parsed.isChord && parsed.rootNote) {
+          return `[${transposeChord(inner, semitones)}]`;
+        }
+        return match;
+      });
+    }
+
+    const DEFAULT_METRICS = {
+      thaiConsonantWidth: 12.5,
+      thaiCombiningWidth: 0,
+      spaceWidth: 7,
+      latinCharWidth: 9,
+      chordCharWidth: 8.5,
+      chordPadding: 6,
+      minChordGap: 8
+    };
+
+    function calculateCharPositions(lyrics, opts = DEFAULT_METRICS) {
+      const charPositions = [];
+      let currentX = 0;
+      for (let i = 0; i < lyrics.length; i++) {
+        const ch = lyrics[i];
+        let width = 0;
+        if (isCombiningMark(ch)) width = opts.thaiCombiningWidth;
+        else if (ch === ' ') width = opts.spaceWidth;
+        else if (isThaiCharacter(ch)) width = opts.thaiConsonantWidth;
+        else if (/[a-zA-Z0-9]/.test(ch)) width = opts.latinCharWidth;
+        else width = 10;
+
+        charPositions.push({ char: ch, index: i, x_start: currentX, width, x_end: currentX + width });
+        currentX += width;
+      }
+      return { charPositions, totalLyricWidth: currentX };
+    }
+
+    function measureChordWidth(rawChord, opts = DEFAULT_METRICS) {
+      return (rawChord ? rawChord.length : 0) * opts.chordCharWidth + opts.chordPadding;
+    }
+
+    function buildTimeline(parsedLine, opts = DEFAULT_METRICS) {
+      if (!parsedLine || parsedLine.type !== 'lyric') {
+        return { type: parsedLine ? parsedLine.type : 'unknown', raw: parsedLine ? parsedLine.raw : '', lyrics: '', charPositions: [], chords: [], totalWidth: 0 };
+      }
+
+      const { lyrics, chords } = parsedLine;
+      const { charPositions, totalLyricWidth } = calculateCharPositions(lyrics, opts);
+
+      const chordsWithIdeal = chords.map(c => {
+        let x_ideal = 0;
+        if (c.isEndTurnaround || c.anchorIndex >= lyrics.length) x_ideal = totalLyricWidth;
+        else if (charPositions[c.anchorIndex]) x_ideal = charPositions[c.anchorIndex].x_start;
+        return { ...c, x_ideal };
+      });
+
+      // Track 0 collision resolver
+      const sorted = [...chordsWithIdeal].sort((a, b) => a.anchorIndex !== b.anchorIndex ? a.anchorIndex - b.anchorIndex : (a.order ?? 0) - (b.order ?? 0));
+      const resolved = [];
+
+      for (let k = 0; k < sorted.length; k++) {
+        const c = sorted[k];
+        const width = measureChordWidth(c.raw, opts);
+        if (k === 0) {
+          const x_actual = Math.max(0, c.x_ideal);
+          resolved.push({ ...c, width, x_actual, displaced: x_actual !== c.x_ideal, shiftAmount: Math.max(0, x_actual - c.x_ideal) });
+        } else {
+          const prev = resolved[k - 1];
+          const minAllowed = prev.x_actual + prev.width + opts.minChordGap;
+          if (c.x_ideal < minAllowed) {
+            const x_actual = minAllowed;
+            resolved.push({ ...c, width, x_actual, displaced: true, shiftAmount: minAllowed - c.x_ideal });
+          } else {
+            resolved.push({ ...c, width, x_actual: c.x_ideal, displaced: false, shiftAmount: 0 });
+          }
+        }
+      }
+
+      let maxEnd = totalLyricWidth;
+      for (const c of resolved) {
+        if (c.x_actual + c.width > maxEnd) maxEnd = c.x_actual + c.width;
+      }
+
+      return { type: 'lyric', raw: parsedLine.raw, lyrics, charPositions, chords: resolved, totalLyricWidth, totalWidth: maxEnd };
+    }
+
+    // --- 2. PLAYGROUND APPLICATION STATE & CONTROLLER ---
+
+    const PRESETS = {
+      '176': `{title: ฉันแลกเปลี่ยนความเศร้าโศก}
+{key: A}
+[A]ฉัน[D]แลกเปลี่ยน[F#m]ความเศร้าโศก [E]
+[A]ฉัน[D]แลกเปลี่ยน[F#m]ความอาย [E]
+[A]ฉัน[D]ยอมแลกเพื่อ[F#m]ความชื่นบาน[E]ในพระ[A]องค์ [D] [F#m] [E]`,
+
+      '48': `{title: โลหิตพระคริสต์ ทรงชำระข้า}
+{key: C}
+[C]โลหิตพระคริสต์ [Em]ทรง[Am]ชำระข้า
+[F]โลหิตพระองค์ ทรง[G]ให้ชีวิต
+[F]โดยพระโลหิต ข้ารับการ[G]ไถ่
+[C]จาก[Em]ความบาปทั้งหลาย[Am]ของข้า
+[C][Em]ขาวยิ่งกว่าหิมะ… ([Am]กว่าหิมะ)`,
+
+      '16': `{title: องค์บริสุทธิ์ วิสุทธิ์}
+{key: F}
+[F]องค์บริสุทธิ์[Fdim] [Dm]วิสุทธิ์
+[Gm]ผู้ใดเปรียบ[F]เหมือน[Eb]พระ[C]องค์
+[F]องค์บริสุทธิ์[Fdim] [Dm]วิสุทธิ์
+[Gm]พระสิริ[C]แด่[F]พระ[C]องค์
+[F]ลูกขอสรรเสริญ[Bbmaj7]พระองค์เรื่อย...ไป`,
+
+      '301': `{title: ข้ารับชีวิตพระคริสต์}
+{key: C}
+[C][G/B][Am][Am/G]ข้ารับชีวิตพระคริสต์
+[F][C/E][Dm7][G7]โดยความเชื่อในพระองค์
+[C][Em7][F][G]เดินไปในทางพระบิดา
+[Am][Em][F][G][C]สรรเสริญพระนามพระองค์`,
+
+      'slash_demo': `{title: Slash Chords Harmonic Progression}
+{key: C}
+[C] [C/E] [F] [G/B]
+[Am] [Am/G] [Dsus4/F#] [G]
+[F/A] [G/B] [C/E] [F]
+[C/G] [G7] [C] (x2)`,
+
+      'custom': `{title: Custom Song}
+{key: G}
+[G]พิมพ์เนื้อเพลงและคอร์ด[C]ของคุณที่นี่
+[D]รองรับภาษาไทย[Em]แบบต่อเนื่อง 100%`
+    };
+
+    let activeTranspose = 0;
+    let currentMode = 'split';
+    let currentTheme = 'dark';
+
+    function loadPreset(key) {
+      const text = PRESETS[key] || PRESETS['176'];
+      document.getElementById('chordpro-input').value = text;
+      activeTranspose = 0;
+      updateTransposeLabel();
+      renderPlayground();
+    }
+
+    function changeTranspose(delta) {
+      activeTranspose += delta;
+      updateTransposeLabel();
+      renderPlayground();
+    }
+
+    function resetTranspose() {
+      activeTranspose = 0;
+      updateTransposeLabel();
+      renderPlayground();
+    }
+
+    function updateTransposeLabel() {
+      const el = document.getElementById('transpose-label');
+      el.innerText = `${activeTranspose >= 0 ? '+' : ''}${activeTranspose} st`;
+    }
+
+    function setViewMode(mode) {
+      currentMode = mode;
+      ['split', 'single', 'timeline'].forEach(m => {
+        const btn = document.getElementById(`btn-mode-${m}`);
+        const view = document.getElementById(`view-${m}`);
+        if (m === mode) {
+          btn.className = 'px-2.5 py-1 rounded text-xs bg-amber-500 text-slate-950 font-bold transition';
+          view.classList.remove('hidden');
+        } else {
+          btn.className = 'px-2.5 py-1 rounded text-xs text-slate-300 hover:text-white transition';
+          view.classList.add('hidden');
+        }
+      });
+      renderPlayground();
+    }
+
+    function toggleTheme() {
+      currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.getElementById('theme-icon').innerText = currentTheme === 'dark' ? '🌙' : '☀️';
+      document.getElementById('theme-text').innerText = currentTheme === 'dark' ? 'Dark' : 'Light';
+      renderPlayground();
+    }
+
+    function insertChordSnippet(chord) {
+      const textarea = document.getElementById('chordpro-input');
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      textarea.value = text.substring(0, start) + chord + text.substring(end);
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = start + chord.length;
+      renderPlayground();
+    }
+
+    function clearEditor() {
+      document.getElementById('chordpro-input').value = '';
+      renderPlayground();
+    }
+
+    function onInputChanged() {
+      renderPlayground();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // --- 3. RENDERERS ---
+
+    function renderWesternSim(line) {
+      // Simulates standard ChordPro rigid column model
+      const regex = /\[([^\]]+)\]([^[\]]*)/g;
+      const tokens = [];
+      let lastIdx = 0;
+      
+      const firstBracket = line.indexOf('[');
+      if (firstBracket > 0) {
+        tokens.push({ chord: '', lyric: line.substring(0, firstBracket) });
+      }
+
+      let m;
+      while ((m = regex.exec(line)) !== null) {
+        tokens.push({ chord: m[1], lyric: m[2] });
+        lastIdx = regex.lastIndex;
+      }
+      if (lastIdx < line.length && firstBracket === -1) {
+        tokens.push({ chord: '', lyric: line.substring(lastIdx) });
+      }
+
+      let html = '<div class="flex items-end flex-wrap gap-0 font-sarabun text-base leading-none py-1 border-b border-slate-900">';
+      tokens.forEach(t => {
+        html += '<div class="inline-flex flex-col items-start px-0.5 border-r border-dotted border-red-500/20">';
+        html += `<span class="font-mono text-xs font-bold text-red-400 min-h-[1.4em] select-none">${escapeHtml(t.chord)}</span>`;
+        html += `<span class="text-slate-200 bg-red-500/10 whitespace-pre">${t.lyric ? escapeHtml(t.lyric) : '&nbsp;&nbsp;&nbsp;'}</span>`;
+        html += '</div>';
+      });
+      html += '</div>';
+      return html;
+    }
+
+    function renderThaiChordLine(timeline, theme = 'dark') {
+      const minWidth = Math.ceil(timeline.totalWidth || 0);
+      let html = `<div class="relative block my-2 overflow-x-auto" style="min-width: ${minWidth}px">`;
+      
+      // Track 0: Chords
+      if (timeline.chords && timeline.chords.length > 0) {
+        html += `<div class="relative h-6 font-mono text-xs font-bold text-amber-400 select-none whitespace-nowrap" style="width: ${minWidth}px">`;
+        timeline.chords.forEach(c => {
+          const leftPx = c.x_actual.toFixed(1);
+          const bassSpan = c.bass ? `<span class="text-slate-400">/</span><span class="text-pink-400">${escapeHtml(c.bass)}</span>` : '';
+          const dispIndicator = c.displaced ? 'border-b-2 border-purple-400' : '';
+          html += `<span class="absolute top-0 px-1 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ${dispIndicator} cursor-default hover:bg-amber-500/20 transition" style="left: ${leftPx}px" title="Anchor: '${timeline.lyrics[c.anchorIndex] || 'end'}' (x=${leftPx}px${c.displaced ? ', shifted +' + c.shiftAmount.toFixed(1) + 'px' : ''})">`;
+          html += `<span class="text-amber-300">${escapeHtml(c.rootNote || c.raw)}</span><span class="text-amber-200 text-[11px]">${escapeHtml(c.quality || '')}</span>${bassSpan}`;
+          html += `</span>`;
+        });
+        html += `</div>`;
+      }
+
+      // Track 1: Continuous Thai Lyric Track (NEVER sliced!)
+      html += `<div class="relative font-sarabun text-base text-slate-100 whitespace-pre leading-relaxed tracking-normal pl-2 font-normal">${escapeHtml(timeline.lyrics || ' ')}</div>`;
+      html += `</div>`;
+      return html;
+    }
+
+    function renderTimelineTrackInspector(timeline) {
+      let html = `<div class="bg-slate-950 p-4 rounded-xl border border-slate-800 timeline-grid relative overflow-x-auto">`;
+      
+      // Track 0
+      html += `<div class="relative h-10 border-b border-dashed border-amber-500/30 flex items-center mb-4">`;
+      html += `<span class="absolute -left-2 -top-2.5 text-[10px] font-mono text-amber-400 font-bold bg-slate-900 px-1 border border-amber-500/30 rounded">Track 0 (Chords)</span>`;
+      html += `<div class="relative w-full h-full">`;
+      timeline.chords.forEach(c => {
+        html += `<div class="absolute top-1 font-mono text-xs font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow" style="left: ${c.x_actual.toFixed(1)}px">`;
+        html += `${escapeHtml(c.raw)}`;
+        if (c.displaced) html += ` <span class="text-[10px] text-purple-300">(+${c.shiftAmount.toFixed(0)}px)</span>`;
+        html += `</div>`;
+      });
+      html += `</div></div>`;
+
+      // Track 1
+      html += `<div class="relative h-8 flex items-center">`;
+      html += `<span class="absolute -left-2 -top-2.5 text-[10px] font-mono text-blue-400 font-bold bg-slate-900 px-1 border border-blue-500/30 rounded">Track 1 (Continuous Lyrics)</span>`;
+      html += `<div class="font-sarabun text-base text-slate-200 pl-3 tracking-normal">${escapeHtml(timeline.lyrics)}</div>`;
+      html += `</div></div>`;
+
+      return html;
+    }
+
+    function renderPlayground() {
+      const rawText = document.getElementById('chordpro-input').value;
+      const transposedText = activeTranspose !== 0 ? transposeChordPro(rawText, activeTranspose) : rawText;
+
+      const lines = transposedText.split(/\r?\n/);
+      let westernHtml = '';
+      let thaichordHtml = '';
+      let inspectorHtml = '';
+
+      let totalChords = 0;
+      let totalSlash = 0;
+      let totalDisplaced = 0;
+
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          const match = trimmed.slice(1, -1).split(':');
+          const name = match[0].trim();
+          const val = match[1] ? match[1].trim() : '';
+          const headerHtml = `<div class="text-xs text-slate-400 font-mono py-1 border-b border-slate-800"><span class="text-slate-500 uppercase">${escapeHtml(name)}:</span> <strong class="text-white">${escapeHtml(val)}</strong></div>`;
+          westernHtml += headerHtml;
+          thaichordHtml += headerHtml;
+          return;
+        }
+
+        if (trimmed.startsWith('[') && trimmed.endsWith(']') && SECTION_NAME_REGEX.test(trimmed.slice(1, -1))) {
+          const secHtml = `<div class="text-sm font-bold text-purple-400 pt-2 font-mono">${escapeHtml(trimmed.slice(1, -1))}</div>`;
+          westernHtml += secHtml;
+          thaichordHtml += secHtml;
+          return;
+        }
+
+        const parsed = parseLine(line);
+        const timeline = buildTimeline(parsed);
+
+        if (timeline.chords) {
+          totalChords += timeline.chords.length;
+          timeline.chords.forEach(c => {
+            if (c.bass) totalSlash++;
+            if (c.displaced) totalDisplaced++;
+          });
+        }
+
+        westernHtml += renderWesternSim(line);
+        thaichordHtml += renderThaiChordLine(timeline, currentTheme);
+        if (timeline.chords && timeline.chords.length > 0) {
+          inspectorHtml += renderTimelineTrackInspector(timeline);
+        }
+      });
+
+      // Update previews
+      document.getElementById('preview-western').innerHTML = westernHtml || '<div class="text-xs text-slate-500 italic">No input to display</div>';
+      document.getElementById('preview-thaichord-split').innerHTML = thaichordHtml || '<div class="text-xs text-slate-500 italic">No input to display</div>';
+      document.getElementById('preview-thaichord-full').innerHTML = thaichordHtml || '<div class="text-xs text-slate-500 italic">No input to display</div>';
+      document.getElementById('preview-timeline-inspector').innerHTML = inspectorHtml || '<div class="text-xs text-slate-500 italic">No chord lines to inspect</div>';
+
+      // Update metrics
+      document.getElementById('metric-chords').innerText = totalChords;
+      document.getElementById('metric-slash').innerText = totalSlash;
+      document.getElementById('metric-displaced').innerText = totalDisplaced;
+    }
+
+    // Initialize with default preset
+    loadPreset('176');
+  </script>
+</body>
+</html>

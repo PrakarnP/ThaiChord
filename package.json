@@ -6,7 +6,8 @@
   "module": "src/index.js",
   "type": "module",
   "scripts": {
-    "test": "node tests/run_tests.js"
+    "test": "node tests/run_tests.js",
+    "playground": "python -m http.server 8501 --directory playground"
   },
   "keywords": [
     "chordpro",
