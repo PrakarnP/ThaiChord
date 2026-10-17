@@ -24,5 +24,8 @@ In Western languages where words are space-delimited, this works. In Asian conti
 - **`src/components/thai_chord_sheet.js`**: Zero-dependency Web Component (`<thai-chord>`).
 
 ## License
+I DON'T EVNE KNOW HOW TO DO OR FIND ONE PLEASE HELP
 
-MIT
+
+## Additional
+เปนคนไทยค่บ :>
